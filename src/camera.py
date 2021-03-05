@@ -5,6 +5,7 @@ from queue import Queue
 
 class Camera(threading.Thread) :
 	_queue = Queue()
+	_isStopped = False
 
 	'''
 	Constructor that takes the width and the height of the camera
@@ -67,3 +68,9 @@ class Camera(threading.Thread) :
 			raise RuntimeError("FPS can't be negative")
 
 		self._fps = value
+
+	'''
+	Stop thread's execution
+	'''
+	def stop(self):
+		self._isStopped = True

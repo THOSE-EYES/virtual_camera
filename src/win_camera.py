@@ -30,14 +30,22 @@ class WinCamera(camera.Camera):
 	Show the image on the virtual camera
 	'''
 	def __show(self, image):
+		# Resize the image to fit the camera
+		image = cv2.resize(image, (self._width, self._height), interpolation = cv2.INTER_AREA)
+
 		# Send the image
-        self._camera.send(image)
+		self._camera.send(image)
 
 		# Sleep until the next frame time
-        self._camera.sleep_until_next_frame()
+		self._camera.sleep_until_next_frame()
 
 	'''
 	Thread execution method
 	'''
 	def run(self):
-		self.__show(self._queue.get())
+		# Run while not stopped 
+		while not self._isStopped :
+			# Check if the queue is empty
+			if not self._queue.empty():
+				# Show the image
+				self.__show(self._queue.get())

@@ -14,7 +14,7 @@ class UNIXCamera(camera.Camera):
 	Constructor for a UNIX-based implementation of
 	the package
 	'''
-	def __init__(self, width, height, fps, device = "/dev/video1"):
+	def __init__(self, width, height, fps, device):
 		super().__init__(width, height, fps)
 
 		# Set the internal fields
@@ -34,7 +34,7 @@ class UNIXCamera(camera.Camera):
 	Show the image on the virtual camera
 	'''
 	def __show(self, image):
-		# Resize the image
+		# Resize the image to fit the camera
 		image = cv2.resize(image, (self._width, self._height), interpolation = cv2.INTER_AREA)
 
 		# Send the image
@@ -57,5 +57,9 @@ class UNIXCamera(camera.Camera):
 	Thread execution method
 	'''
 	def run(self):
-		self.__show(self._queue.get())
-
+		# Run while not stopped 
+		while not self._isStopped :
+			# Check if the queue is empty
+			if not self._queue.empty():
+				# Show the image
+				self.__show(self._queue.get())
