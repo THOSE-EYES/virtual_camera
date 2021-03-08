@@ -1,5 +1,5 @@
 import pyvirtualcam
-import camera
+from virtual_camera.camera import Camera
 import cv2
 
 '''
@@ -8,7 +8,7 @@ the virtual camera to use the package as a cross-platform
 solution. It can spawn a virtual camera and show images or
 videos to the apps using this camera 
 '''
-class WinCamera(camera.Camera):
+class WinCamera(Camera):
 	'''
 	Constructor for a Windows-based implementation of
 	the package

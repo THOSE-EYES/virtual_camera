@@ -1,5 +1,5 @@
 import pyfakewebcam
-import camera
+from virtual_camera.camera import Camera
 import time
 import cv2
 
@@ -9,7 +9,7 @@ the virtual camera to use the package as a cross-platform
 solution. It can spawn a virtual camera and show images or
 videos to the apps using this camera 
 '''
-class UNIXCamera(camera.Camera):
+class UNIXCamera(Camera):
 	'''
 	Constructor for a UNIX-based implementation of
 	the package

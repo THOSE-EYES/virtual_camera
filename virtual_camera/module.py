@@ -3,29 +3,35 @@ import argparse
 import cv2
 import sys
 import time
+import glob
 
 # Import the suitable camera interface
 if os.name == 'nt':
-	from win_camera import WinCamera as Camera
+	from virtual_camera.win_camera import WinCamera as Camera
 elif os.name == 'posix':
-	from unix_camera import UNIXCamera as Camera
+	from virtual_camera.unix_camera import UNIXCamera as Camera
 else:
     raise ImportError(
         "Sorry: no implementation for \
 		 your platform ('{}') available".format(os.name))
 
-class Application :
+class CameraApplication :
 	_cameras = list()			# List of used cameras
+	_is_stopped = False
 
 	'''
 	Constructor which takes camera parameters and the amount of the devices
 	'''
-	def __init__(self, number, path, width, height, fps, device = "/dev/video1"):
+	def __init__(self, number, width, height, fps, path = "", device = "/dev/video1"):
 		for index in range(number):
 			if os.name == 'nt':
 				camera = Camera(width, height, fps)
 			elif os.name == 'posix':
 				camera = Camera(width, height, fps, device)
+
+			# Set the path to load files
+			if not path == "":
+				self._files = glob.glob(path + "*.png")
 
 			# Start the thread
 			camera.start()
@@ -33,35 +39,63 @@ class Application :
 			# Add the thead to the list
 			self._cameras.append(camera)
 
+	'''
+	Run the app as a standalone module
+	'''
 	def run(self):
-		# Read the image
+		while not self._is_stopped:
+			if len(self._files) == 0:
+				raise RuntimeError("There are no pictures to show")
+
+			for image_file in self._files:
+				try :
+					# Read the image
+					image = cv2.imread(image_file)
+					image = cv2.cvtColor(image, cv2.COLOR_BGR2RGBA)
+
+					# Send images to cameras' queues
+					for index in range(len(self._cameras)):
+						camera = self._cameras[index]
+
+						# Send the image to the camera
+						camera._queue.put(image)
+
+						# Remove the cameras which are stopped
+						if not camera.is_alive():
+							self._cameras.remove(camera)
+				
+				except (KeyboardInterrupt, SystemExit):
+					self.stop()
+
+				except cv2.error:
+					print("Image not found. Closing the app...")
+					self.stop()
+
+	'''
+	Show the picture on the camera
+	'''
+	def show(self, image, camera):
 		try :
-			pass
-			#image = cv2.imread( # FIXME )
-			#image = cv2.cvtColor(image, cv2.COLOR_BGR2RGBA)
-		except cv2.error:
-			print("Image not found. Closing the app...")
-			self.stop()
+			if camera > len(_cameras):
+				raise RuntimeError("Camera index is out of range")
 
-		# Send images to cameras' queues
-		try : 
-			for index in range(len(self._cameras)):
-				camera = self._cameras[index]
+			# Send the image to the camera
+			camera = self._cameras[index]
+			camera._queue.put(image)
 
-				# Send the image to the camera
-				camera._queue.put(image)
-
-				# Remove the cameras which are stopped
-				if not camera.is_alive():
-					self._cameras.remove(camera)
-		
 		except (KeyboardInterrupt, SystemExit):
 			self.stop()
 
-		'''
-		Stop the execution and kill all the camera threads
-		'''
+	'''
+	Stop the execution and kill all the camera threads
+	'''
 	def stop(self):
+		print("Stopping...")
+
+		# Stop the main loop
+		self._is_stopped = True
+
+		# Stop the cameras
 		for index in range(len(self._cameras)):
 			self._cameras[index].stop()
 
@@ -88,7 +122,7 @@ def main():
 		device = args.device
 
 	# Start the app
-	app = Application(number, path, width, height, fps)
+	app = CameraApplication(number, width, height, fps, path)
 	try :
 		app.run()
 	
