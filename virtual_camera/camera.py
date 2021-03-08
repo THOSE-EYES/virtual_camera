@@ -2,10 +2,12 @@ from abc import abstractmethod
 import threading
 import numpy
 from queue import Queue
+import logging
 
 class Camera(threading.Thread) :
 	_queue = Queue()
-	_isStopped = False
+	_stop_event = threading.Event()
+	_lock = threading.Lock()
 
 	'''
 	Constructor that takes the width and the height of the camera
@@ -73,4 +75,4 @@ class Camera(threading.Thread) :
 	Stop thread's execution
 	'''
 	def stop(self):
-		self._isStopped = True
+		self._stop_event.set()

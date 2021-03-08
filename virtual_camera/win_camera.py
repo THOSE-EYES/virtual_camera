@@ -1,6 +1,7 @@
 import pyvirtualcam
 from virtual_camera.camera import Camera
 import cv2
+import logging
 
 '''
 The class is dedicate to cover the Windows implementation of 
@@ -23,8 +24,16 @@ class WinCamera(Camera):
 	Spawn the camera
 	'''
 	def __spawn(self):
-		self._camera = pyvirtualcam.Camera(width=self._width, height=self._height, fps=self._fps)
-		print ("Camera spawned!")
+		try :
+			self._camera = pyvirtualcam.Camera(width=self._width, height=self._height, fps=self._fps)
+			logging.info("Camera spawned!")
+
+		except RuntimeError:
+			# Stop the thread
+			self.stop()
+
+			# Log the error
+			logging.error("Camera was not spawned!")
 
 	'''
 	Show the image on the virtual camera
@@ -44,7 +53,7 @@ class WinCamera(Camera):
 	'''
 	def run(self):
 		# Run while not stopped 
-		while not self._isStopped :
+		while not self._stop_event.is_set(): 
 			# Check if the queue is empty
 			if not self._queue.empty():
 				# Show the image

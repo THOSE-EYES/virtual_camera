@@ -2,6 +2,7 @@ import pyfakewebcam
 from virtual_camera.camera import Camera
 import time
 import cv2
+import logging
 
 '''
 The class is dedicate to cover the UNIX implementation of 
@@ -27,13 +28,22 @@ class UNIXCamera(Camera):
 	Spawn the camera
 	'''
 	def __spawn(self):
-		self._camera = pyfakewebcam.FakeWebcam(self._device, self._width, self._height)
-		print ("Camera spawned!")
+		try:
+			self._camera = pyfakewebcam.FakeWebcam(self._device, self._width, self._height)
+			logging.info("Camera spawned!")
+
+		except RuntimeError:
+			# Stop the thread
+			self.stop()
+
+			# Log the error
+			logging.error("Camera was not spawned!")
 
 	'''
 	Show the image on the virtual camera
 	'''
 	def __show(self, image):
+		acquire()
 		# Resize the image to fit the camera
 		image = cv2.resize(image, (self._width, self._height), interpolation = cv2.INTER_AREA)
 
@@ -49,6 +59,7 @@ class UNIXCamera(Camera):
 	def __setDevice(self, value):
 		# Sanity check
 		if not value == "":
+			logging.error("Device parameter is empty")
 			raise RuntimeError("Device parameter is empty")
 
 		self._device = value
@@ -58,7 +69,7 @@ class UNIXCamera(Camera):
 	'''
 	def run(self):
 		# Run while not stopped 
-		while not self._isStopped :
+		while not self._stop_event.is_set(): 
 			# Check if the queue is empty
 			if not self._queue.empty():
 				# Show the image

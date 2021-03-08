@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="virtual_camera",
-    version="1.1.4",
+    version="1.1.8",
     author="Illia Shvarov",
     author_email="illia.shvarov@gmail.com",
     description="Cross-Platform Virtual Camera using Python.",

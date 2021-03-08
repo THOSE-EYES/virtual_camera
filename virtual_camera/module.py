@@ -4,6 +4,8 @@ import cv2
 import sys
 import time
 import glob
+import logging
+import threading
 
 # Import the suitable camera interface
 if os.name == 'nt':
@@ -15,90 +17,95 @@ else:
         "Sorry: no implementation for \
 		 your platform ('{}') available".format(os.name))
 
-class CameraApplication :
+class CameraApplication(threading.Thread) :
 	_cameras = list()			# List of used cameras
-	_is_stopped = False
+	_stop_event = threading.Event()
+	_lock = threading.Lock()
 
 	'''
 	Constructor which takes camera parameters and the amount of the devices
 	'''
-	def __init__(self, number, width, height, fps, path = "", device = "/dev/video1"):
+	def __init__(self, number, width, height, fps, device = "/dev/video1"):
+		threading.Thread.__init__(self, args=(), kwargs=None)
+
 		for index in range(number):
 			if os.name == 'nt':
 				camera = Camera(width, height, fps)
 			elif os.name == 'posix':
 				camera = Camera(width, height, fps, device)
 
-			# Set the path to load files
-			if not path == "":
-				self._files = glob.glob(path + "*.png")
-
 			# Start the thread
 			camera.start()
 
 			# Add the thead to the list
-			self._cameras.append(camera)
+			if camera.is_alive():			
+				self._cameras.append(camera)
 
 	'''
-	Run the app as a standalone module
+	Start the trhread
 	'''
 	def run(self):
-		while not self._is_stopped:
-			if len(self._files) == 0:
-				raise RuntimeError("There are no pictures to show")
-
-			for image_file in self._files:
-				try :
-					# Read the image
-					image = cv2.imread(image_file)
-					image = cv2.cvtColor(image, cv2.COLOR_BGR2RGBA)
-
-					# Send images to cameras' queues
-					for index in range(len(self._cameras)):
-						camera = self._cameras[index]
-
-						# Send the image to the camera
-						camera._queue.put(image)
-
-						# Remove the cameras which are stopped
-						if not camera.is_alive():
-							self._cameras.remove(camera)
-				
-				except (KeyboardInterrupt, SystemExit):
-					self.stop()
-
-				except cv2.error:
-					print("Image not found. Closing the app...")
-					self.stop()
+		while not self._stop_event.is_set():
+			pass
 
 	'''
 	Show the picture on the camera
 	'''
-	def show(self, image, camera):
+	def show(self, image, index):
+		# Create a lock
+		self._lock.acquire()
+
 		try :
-			if camera > len(_cameras):
+			# Check if the index is not out of range
+			if index > len(self._cameras):
+				# Stop the app
+				self.stop()
+
+				# Throw an exception
+				logging.error("Camera index is out of range")
 				raise RuntimeError("Camera index is out of range")
 
 			# Send the image to the camera
 			camera = self._cameras[index]
 			camera._queue.put(image)
 
-		except (KeyboardInterrupt, SystemExit):
+		# Stop all the threads after catching an exception
+		except (KeyboardInterrupt, SystemError, SystemExit) as e :
+			# Stop the app
 			self.stop()
+
+			# Throw the exception to the main app
+			logging.exception("An exception occured : " + str(e))
+			raise RuntimeError(str(e))
+
+		except Exception:
+			# Stop the app
+			self.stop()
+
+		# Release the lock 
+		self._lock.release()
 
 	'''
 	Stop the execution and kill all the camera threads
 	'''
 	def stop(self):
-		print("Stopping...")
+		logging.info("Stopping...")
 
 		# Stop the main loop
-		self._is_stopped = True
+		self._stop_event.set()
 
 		# Stop the cameras
 		for index in range(len(self._cameras)):
-			self._cameras[index].stop()
+			logging.info("Stopping the camera : " + str(index))
 
+			# Stop camera nodes
+			self._cameras[index].stop()
+			self._cameras[index].join()
+
+		# Release the lock 
+		if (self._lock.locked()):
+			self._lock.release()
+	
 def main():
 	# Parse command-line arguments
 	parser = argparse.ArgumentParser()
@@ -122,16 +129,12 @@ def main():
 		device = args.device
 
 	# Start the app
-	app = CameraApplication(number, width, height, fps, path)
-	try :
-		app.run()
-	
-	# Stop all the threads after catching an exception in the main thread
-	except Exception as e :
-		print("An exception occured : " + str(e))
-		app.stop()
+	app = CameraApplication(number, width, height, fps)
+	app.start()
 
-	print("App closed!")
+	# FIXME : add the ability to show pictures here
+
+	logging.info("App was closed!")
 
 if __name__ == "__main__":
 	main()
