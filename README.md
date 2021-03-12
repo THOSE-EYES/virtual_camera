@@ -5,6 +5,7 @@ The app is dedicated to spawn and use virtual camera on Windows and Linux
 ```py
 from virtual_camera import CameraController
 import numpy as np
+import sys
 
 # Create camera controller
 fps = 20
