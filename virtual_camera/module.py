@@ -17,7 +17,7 @@ else:
         "Sorry: no implementation for \
 		 your platform ('{}') available".format(os.name))
 
-class CameraApplication(threading.Thread) :
+class CameraController(threading.Thread) :
 	_cameras = list()			# List of used cameras
 	_stop_event = threading.Event()
 	_lock = threading.Lock()
@@ -33,20 +33,44 @@ class CameraApplication(threading.Thread) :
 				camera = Camera(width, height, fps)
 			elif os.name == 'posix':
 				camera = Camera(width, height, fps, device)
-
-			# Start the thread
-			camera.start()
-
+		
 			# Add the thead to the list
-			if camera.is_alive():			
-				self._cameras.append(camera)
+			self._cameras.append(camera)
 
 	'''
-	Start the trhread
+	Start the thread
 	'''
 	def run(self):
-		while not self._stop_event.is_set():
-			pass
+		try :
+			# Run camera threads
+			self.__startCameraThreads()
+
+			# Main loop
+			while (not self._stop_event.is_set()) and (len(self._cameras) != 0):
+				# Check if cameras are running
+				self.__checkCameraThreads()
+		except:
+			self.stop()
+
+	'''
+	Start camera threads
+	'''
+	def __startCameraThreads(self):
+		# Start camera threads
+		for index in range(len(self._cameras)):
+			camera = self._cameras[index]
+			camera.start()
+
+	'''
+	Check if cameras are running and remove it otherwise
+	'''
+	def __checkCameraThreads(self):
+		for index in range(len(self._cameras)):
+			camera = self._cameras[index]
+
+			# Delete a camera if it hasn't started
+			if not camera.is_alive():
+				self._cameras.remove(camera)
 
 	'''
 	Show the picture on the camera
@@ -69,21 +93,17 @@ class CameraApplication(threading.Thread) :
 			camera = self._cameras[index]
 			camera._queue.put(image)
 
+			# Release the lock
+			if (self._lock.locked()):
+				self._lock.release()
+
 		# Stop all the threads after catching an exception
-		except (KeyboardInterrupt, SystemError, SystemExit) as e :
+		except:
 			# Stop the app
 			self.stop()
 
 			# Throw the exception to the main app
-			logging.exception("An exception occured : " + str(e))
-			raise RuntimeError(str(e))
-
-		except Exception:
-			# Stop the app
-			self.stop()
-
-		# Release the lock 
-		self._lock.release()
+			logging.exception("An exception occured!")
 
 	'''
 	Stop the execution and kill all the camera threads
@@ -105,6 +125,8 @@ class CameraApplication(threading.Thread) :
 		# Release the lock 
 		if (self._lock.locked()):
 			self._lock.release()
+
+		logging.info("App was closed!")
 	
 def main():
 	# Parse command-line arguments
@@ -129,7 +151,7 @@ def main():
 		device = args.device
 
 	# Start the app
-	app = CameraApplication(number, width, height, fps)
+	app = CameraController(number, width, height, fps)
 	app.start()
 
 	# FIXME : add the ability to show pictures here

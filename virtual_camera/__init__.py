@@ -1,3 +1,3 @@
 from ._version import __version__
 
-from .module import CameraApplication
+from .module import CameraController
